@@ -11,13 +11,12 @@ use instructions::*;
 use spl_discriminator::SplDiscriminate;
 use spl_transfer_hook_interface::{
     instruction::{
-        ExecuteInstruction, 
-        InitializeExtraAccountMetaListInstruction
+        ExecuteInstruction
     },
 };
 use spl_tlv_account_resolution::state::ExtraAccountMetaList;
 
-declare_id!("DhzyDgCmmQzVC4vEcj2zRGUyN8Mt5JynfdGLKkBcRGaX");
+declare_id!("7beSigUYwuMhRJpfH71wLyA14hAHgJTLobho6T24vfbn");
 
 #[program]
 pub mod whitelist_transfer_hook {
@@ -27,12 +26,16 @@ pub mod whitelist_transfer_hook {
         ctx.accounts.initialize_whitelist(ctx.bumps)
     }
 
-    pub fn add_to_whitelist(ctx: Context<WhitelistOperations>, user: Pubkey) -> Result<()> {
-        ctx.accounts.add_to_whitelist(user)
+    pub fn add_to_whitelist(ctx: Context<AddToWhitelist>) -> Result<()> {
+        ctx.accounts.add_to_whitelist(&ctx.bumps)
     }
 
-    pub fn remove_from_whitelist(ctx: Context<WhitelistOperations>, user: Pubkey) -> Result<()> {
-        ctx.accounts.remove_from_whitelist(user)
+    pub fn remove_from_whitelist(ctx: Context<RemoveFromWhitelist>) -> Result<()> {
+        ctx.accounts.remove_from_whitelist()
+    }
+
+    pub fn init_mint(ctx: Context<TokenFactory>) -> Result<()> {
+        ctx.accounts.init_mint(&ctx.bumps)
     }
 
     pub fn initialize_transfer_hook(ctx: Context<InitializeExtraAccountMetaList>) -> Result<()> {

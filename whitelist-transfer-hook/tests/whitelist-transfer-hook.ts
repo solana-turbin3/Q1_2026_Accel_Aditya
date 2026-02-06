@@ -13,12 +13,12 @@ import {
   createMintToInstruction,
   createTransferCheckedInstruction,
 } from "@solana/spl-token";
-import { 
-  SendTransactionError, 
-  SystemProgram, 
-  Transaction, 
-  sendAndConfirmTransaction 
-} from '@solana/web3.js';
+import {
+  SendTransactionError,
+  SystemProgram,
+  Transaction,
+  sendAndConfirmTransaction,
+} from "@solana/web3.js";
 import { WhitelistTransferHook } from "../target/types/whitelist_transfer_hook";
 
 describe("whitelist-transfer-hook", () => {
@@ -58,31 +58,38 @@ describe("whitelist-transfer-hook", () => {
     program.programId,
   );
 
-  const whitelist = anchor.web3.PublicKey.findProgramAddressSync(
-    [
-      Buffer.from("whitelist"),
-    ],
-    program.programId
-  )[0];
+//   const whitelist = anchor.web3.PublicKey.findProgramAddressSync(
+//     [
+//       Buffer.from("whitelist"),
+//     ],
+//     program.programId
+//   )[0];
 
-  it("Initializes the Whitelist", async () => {
-    const tx = await program.methods.initializeWhitelist()
-      .accountsPartial({
-        admin: provider.publicKey,
-        whitelist,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      })
-      .rpc();
+//   it("Initializes the Whitelist", async () => {
+//     const tx = await program.methods.initializeWhitelist()
+//       .accountsPartial({
+//         admin: provider.publicKey,
+//         whitelist,
+//         systemProgram: anchor.web3.SystemProgram.programId,
+//       })
+//       .rpc();
 
-    console.log("\nWhitelist initialized:", whitelist.toBase58());
-    console.log("Transaction signature:", tx);
-  });
+//     console.log("\nWhitelist initialized:", whitelist.toBase58());
+//     console.log("Transaction signature:", tx);
+//   });
 
   it("Add user to whitelist", async () => {
-    const tx = await program.methods.addToWhitelist(provider.publicKey)
+    const [whitelist, whitelistBump] =
+      anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from("whitelist"), provider.publicKey.toBuffer()],
+        program.programId
+      );
+    const tx = await program.methods.addToWhitelist()
       .accountsPartial({
         admin: provider.publicKey,
+        user: provider.publicKey,
         whitelist,
+        systemProgram: SystemProgram.programId,
       })
       .rpc();
 
@@ -90,55 +97,71 @@ describe("whitelist-transfer-hook", () => {
     console.log("Transaction signature:", tx);
   });
 
-  it("Remove user to whitelist", async () => {
-    const tx = await program.methods.removeFromWhitelist(provider.publicKey)
+//   it('Create Mint Account with Transfer Hook Extension', async () => {
+//     const extensions = [ExtensionType.TransferHook];
+//     const mintLen = getMintLen(extensions);
+//     const lamports = await provider.connection.getMinimumBalanceForRentExemption(mintLen);
+
+//     const transaction = new Transaction().add(
+//       SystemProgram.createAccount({
+//         fromPubkey: wallet.publicKey,
+//         newAccountPubkey: mint2022.publicKey,
+//         space: mintLen,
+//         lamports: lamports,
+//         programId: TOKEN_2022_PROGRAM_ID,
+//       }),
+//       createInitializeTransferHookInstruction(
+//         mint2022.publicKey,
+//         wallet.publicKey,
+//         program.programId, // Transfer Hook Program ID
+//         TOKEN_2022_PROGRAM_ID,
+//       ),
+//       createInitializeMintInstruction(mint2022.publicKey, 9, wallet.publicKey, null, TOKEN_2022_PROGRAM_ID),
+//     );
+
+//     const txSig = await sendAndConfirmTransaction(provider.connection, transaction, [wallet.payer, mint2022], {
+//       skipPreflight: true,
+//       commitment: 'finalized',
+//     });
+
+//     const txDetails = await program.provider.connection.getTransaction(txSig, {
+//       maxSupportedTransactionVersion: 0,
+//       commitment: 'confirmed',
+//     });
+//     //console.log(txDetails.meta.logMessages);
+
+//     console.log("\nTransaction Signature: ", txSig);
+//   });
+
+it("Create ExtraAccountMetaList Account", async () => {
+    await program.methods
+      .initializeTransferHook()
       .accountsPartial({
-        admin: provider.publicKey,
-        whitelist,
+        payer: wallet.publicKey,
+        mint: mint2022.publicKey,
+        extraAccountMetaList: extraAccountMetaListPDA,
+        systemProgram: SystemProgram.programId,
       })
       .rpc();
-
-    console.log("\nUser removed from whitelist:", provider.publicKey.toBase58());
-    console.log("Transaction signature:", tx);
+    console.log("\nExtraAccountMetaList Account created:", extraAccountMetaListPDA.toBase58());
   });
 
-  it('Create Mint Account with Transfer Hook Extension', async () => {
-    const extensions = [ExtensionType.TransferHook];
-    const mintLen = getMintLen(extensions);
-    const lamports = await provider.connection.getMinimumBalanceForRentExemption(mintLen);
-
-    const transaction = new Transaction().add(
-      SystemProgram.createAccount({
-        fromPubkey: wallet.publicKey,
-        newAccountPubkey: mint2022.publicKey,
-        space: mintLen,
-        lamports: lamports,
-        programId: TOKEN_2022_PROGRAM_ID,
-      }),
-      createInitializeTransferHookInstruction(
-        mint2022.publicKey,
-        wallet.publicKey,
-        program.programId, // Transfer Hook Program ID
-        TOKEN_2022_PROGRAM_ID,
-      ),
-      createInitializeMintInstruction(mint2022.publicKey, 9, wallet.publicKey, null, TOKEN_2022_PROGRAM_ID),
-    );
-
-    const txSig = await sendAndConfirmTransaction(provider.connection, transaction, [wallet.payer, mint2022], {
-      skipPreflight: true,
-      commitment: 'finalized',
-    });
-
-    const txDetails = await program.provider.connection.getTransaction(txSig, {
-      maxSupportedTransactionVersion: 0,
-      commitment: 'confirmed',
-    });
-    //console.log(txDetails.meta.logMessages);
-
+  it("Create the token", async () => {
+    const txSig = await program.methods
+      .initMint()
+      .accountsPartial({
+        user: wallet.publicKey,
+        mint: mint2022.publicKey,
+        extraAccountMetaList: extraAccountMetaListPDA,
+        systemProgram: SystemProgram.programId,
+        tokenProgram: TOKEN_2022_PROGRAM_ID,
+      })
+      .signers([mint2022])
+      .rpc();
     console.log("\nTransaction Signature: ", txSig);
   });
 
-  it('Create Token Accounts and Mint Tokens', async () => {
+  it("Create Token Accounts and Mint Tokens", async () => {
     // 100 tokens
     const amount = 100 * 10 ** 9;
 
@@ -167,27 +190,24 @@ describe("whitelist-transfer-hook", () => {
     console.log("\nTransaction Signature: ", txSig);
   });
 
-  // Account to store extra accounts required by the transfer hook instruction
-  it('Create ExtraAccountMetaList Account', async () => {
-    const initializeExtraAccountMetaListInstruction = await program.methods
-      .initializeTransferHook()
+  it("Remove user from whitelist", async () => {
+    const [whitelist] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("whitelist"), provider.publicKey.toBuffer()],
+      program.programId
+    );
+    const tx = await program.methods
+      .removeFromWhitelist()
       .accountsPartial({
-        payer: wallet.publicKey,
-        mint: mint2022.publicKey,
-        extraAccountMetaList: extraAccountMetaListPDA,
-        systemProgram: SystemProgram.programId,
+        admin: provider.publicKey,
+        user: provider.publicKey,
+        whitelist,
       })
-      //.instruction();
       .rpc();
-
-    //const transaction = new Transaction().add(initializeExtraAccountMetaListInstruction);
-
-    //const txSig = await sendAndConfirmTransaction(provider.connection, transaction, [wallet.payer], { skipPreflight: true, commitment: 'confirmed' });
-    console.log("\nExtraAccountMetaList Account created:", extraAccountMetaListPDA.toBase58());
-    console.log('Transaction Signature:', initializeExtraAccountMetaListInstruction);
+    console.log("\nUser removed from whitelist:", provider.publicKey.toBase58());
+    console.log("Transaction signature:", tx);
   });
 
-  it('Transfer Hook with Extra Account Meta', async () => {
+  it("Transfer Hook with Extra Account Meta", async () => {
     // 1 tokens
     const amount = 1 * 10 ** 9;
     const amountBigInt = BigInt(amount);
@@ -206,14 +226,14 @@ describe("whitelist-transfer-hook", () => {
 
     // Manually add the extra accounts required by the transfer hook
     // These accounts are needed for the CPI to our transfer hook program
-    transferInstruction.keys.push(
-      // ExtraAccountMetaList PDA
-      { pubkey: extraAccountMetaListPDA, isSigner: false, isWritable: false },
-      // Whitelist PDA (the extra account we defined)
-      { pubkey: whitelist, isSigner: false, isWritable: false },
-      // Transfer hook program
-      { pubkey: program.programId, isSigner: false, isWritable: false },
-    );
+    // transferInstruction.keys.push(
+    //   // ExtraAccountMetaList PDA
+    //   { pubkey: extraAccountMetaListPDA, isSigner: false, isWritable: false },
+    //   // Whitelist PDA (the extra account we defined)
+    //   { pubkey: whitelist, isSigner: false, isWritable: false },
+    //   // Transfer hook program
+    //   { pubkey: program.programId, isSigner: false, isWritable: false },
+    // );
 
     const transaction = new Transaction().add(transferInstruction);
 
